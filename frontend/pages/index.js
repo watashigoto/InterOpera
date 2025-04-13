@@ -3,18 +3,26 @@ import { useState, useEffect } from "react";
 export default function Home() {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
   const [question, setQuestion] = useState("");
   const [answer, setAnswer] = useState("");
-
+  
   useEffect(() => {
-    fetch("http://localhost:8000/api/data")
-      .then((res) => res.json())
+    fetch("http://localhost:8000/api/sales-reps")
+      .then((res) => {
+        if (res.ok) {
+          return res.json();
+        } else {
+          throw new Error("Response is not ok: ", res.statusText);
+        }
+      })
       .then((data) => {
-        setUsers(data.users || []);
+        setUsers(data || []);
         setLoading(false);
       })
       .catch((err) => {
         console.error("Failed to fetch data:", err);
+        setError("Failed to fetch data: " + err.message);
         setLoading(false);
       });
   }, []);
@@ -37,22 +45,97 @@ export default function Home() {
     <div style={{ padding: "2rem" }}>
       <h1>Next.js + FastAPI Sample</h1>
 
-      <section style={{ marginBottom: "2rem" }}>
-        <h2>Dummy Data</h2>
-        {loading ? (
-          <p>Loading...</p>
-        ) : (
-          <ul>
-            {users.map((user) => (
-              <li key={user.id}>
-                {user.name} - {user.role}
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+      {error ? (
+        <p>Error: {error}</p>
+      ) : (
+        <section>
+          {loading ? (
+            <p>Loading...</p>
+          ) : (
+            <div>
+              <table width={"100%"}>
+                <tbody>
+                  {users.map((user, rowIdx) => (
+                    <tr style={{ 
+                      backgroundColor: (rowIdx % 2 == 0) ? "#e8d5a0" : "#a0c5e8",
+                    }}>
+                      <td style={{
+                        verticalAlign: "top",
+                        padding: "10px",
+                      }}>
+                        <p><strong>Name:</strong> {user.name}</p>
+                        <p><strong>Role:</strong> {user.role}</p>
+                        <p><strong>Region:</strong> {user.region}</p>
+                        <div>
+                          <strong>Skills:</strong>
+                          <div>
+                            <ul>
+                              {user.skills?.map((skill, skillIdx) => (
+                                <li key={skillIdx}>{skill}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        </div>
+                      </td>
+                      <td style={{
+                        verticalAlign: "top",
+                        padding: "10px",
+                      }}>
+                        <div>
+                          <strong>Clients:</strong>
+                          <div>
+                            <ul>
+                              {user.clients?.map((client, clientIdx) => {
+                                const deals = user.deals?.filter(deal => deal.client === client.name) || [];
+                                
+                                return (
+                                  <li key={clientIdx}>
+                                    <div>
+                                      {client.name} ({client.industry}): {client.contact}
+                                    </div>
+                                    <div style={{ marginLeft: "10px" }}>
+                                      Deals: {deals.length < 1 ? (
+                                        <>-</>
+                                      ) : (
+                                        <ul>
+                                          {deals.map((deal, dealIdx) => (
+                                            <li key={dealIdx}>{deal.status}: {deal.value}</li>
+                                          ))}
+                                        </ul>
+                                      )}
+                                    </div>
+                                  </li>
+                                );
+                              })}
+                            </ul>
+                          </div>
+                        </div>
+                      </td>
+                      <td style={{
+                        verticalAlign: "top",
+                        padding: "10px",
+                      }}>
+                        <div>
+                          <strong>Deals:</strong>
+                          <div>
+                            <ul>
+                              {user.deals?.map((deal, dealIdx) => (
+                                <li key={dealIdx}>{deal.client} ({deal.status}): {deal.value}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+      )}
 
-      <section>
+      {/* <section>
         <h2>Ask a Question (AI Endpoint)</h2>
         <div>
           <input
@@ -68,7 +151,7 @@ export default function Home() {
             <strong>AI Response:</strong> {answer}
           </div>
         )}
-      </section>
+      </section> */}
     </div>
   );
 }
