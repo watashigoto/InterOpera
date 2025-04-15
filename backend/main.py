@@ -1,16 +1,16 @@
+from dotenv import load_dotenv
+from google import genai
+from google.genai import types
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-import uvicorn
 import json
+import os
+import uvicorn
 
-app = FastAPI()
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_headers=['*'],
-    allow_methods=['GET'],
-    allow_origins=['http://localhost:3000'],
-)
+# load .env
+load_dotenv()
+GEMINI_AI_KEY = os.getenv("GEMINI_AI_KEY", "")
 
 # Load dummy data
 try:
@@ -20,6 +20,17 @@ try:
 except Exception as e:
     DUMMY_DATA = []
     DUMMY_SALES_DATA = []
+
+ai_client = genai.Client(api_key=GEMINI_AI_KEY)
+
+app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_headers=['*'],
+    allow_methods=['GET', 'POST'],
+    allow_origins=['http://localhost:3000'],
+)
 
 @app.get("/api/data")
 def get_data():
@@ -37,9 +48,19 @@ async def ai_endpoint(request: Request):
     body = await request.json()
     user_question = body.get("question", "")
     
-    # Placeholder logic: echo the question or generate a simple response
-    # Replace with real AI logic as desired (e.g., call to an LLM).
-    return {"answer": f"This is a placeholder answer to your question: {user_question}"}
+    if not user_question:
+        return {"answer": "Please provide question"}    
+
+    response = ai_client.models.generate_content(
+        model="gemini-2.0-flash",
+        config=types.GenerateContentConfig(
+            system_instruction="You are an expert sales data analyzer." +
+              f"Your job is to answer the user's query based on this JSON data: {json.dumps(DUMMY_SALES_DATA)}"
+        ),
+        contents=[user_question]
+    )
+
+    return {"answer": f"{response.text}"}
 
 @app.get("/api/sales-reps")
 def get_sales_data():
